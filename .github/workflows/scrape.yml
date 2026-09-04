@@ -1,0 +1,32 @@
+name: Telegram Triggered Spider
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Websites to crawl'
+        required: true
+      chat_id:
+        description: 'Telegram Chat ID'
+        required: true
+
+jobs:
+  scrape-and-send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install curl_cffi pdfplumber beautifulsoup4 pandas requests
+
+      - name: Run Deep Spider
+        run: python main_spider.py "${{ github.event.inputs.urls }}" "${{ github.event.inputs.chat_id }}"
+        env:
+          GAS_WEBHOOK_URL: ${{ secrets.GAS_WEBHOOK_URL }}
+          
