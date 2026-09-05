@@ -2,31 +2,37 @@ name: Telegram Bot Poller
 
 on:
   schedule:
+    # Har 5 minute mein bot check karega ki koi naya message aaya hai ya nahi
     - cron: '*/5 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Button daba kar manually run karne ke liye
 
 permissions:
-  contents: write
+  contents: write # offset.json ko save karne ki permission
 
 jobs:
   poll:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 curl_cffi pdfplumber
+        # Saare zaroori tools install karna
+        run: pip install requests beautifulsoup4 curl_cffi pdfplumber duckduckgo_search
 
       - name: Run bot poller
         env:
+          # GitHub Secrets se Telegram Token lena
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         run: python poll_and_run.py
 
       - name: Commit offset update
+        # offset.json file ko update karke GitHub par save (commit) karna
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
