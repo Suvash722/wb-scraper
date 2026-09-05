@@ -74,6 +74,49 @@ def main():
     save_offset(offset)
 
 
+# Sirf itna hi hona chahiye end mein
+if __name__ == "__main__":
+    main()
+    offset = load_offset()
+    resp = requests.get(
+        f"{API_URL}/getUpdates", params={"offset": offset + 1, "timeout": 5}
+    ).json()
+    updates = resp.get("result", [])
+
+    for update in updates:
+        offset = update["update_id"]
+        message = update.get("message")
+        if not message or "text" not in message:
+            continue
+
+        chat_id = message["chat"]["id"]
+        text = message["text"].strip()
+
+        if text.startswith("/start"):
+            send_message(
+                chat_id,
+                "🤖 Welcome! Koi bhi govt website ka link bhejein "
+                "(jaise: psc.wb.gov.in), main scraping karke CSV bhej dunga.",
+            )
+            continue
+
+        send_message(chat_id, f"🚀 Scraping shuru ho gaya: {text}\nThoda time lagega...")
+        try:
+            csv_path, count = scrape_and_build_csv(text)
+            if count > 0:
+                send_document(
+                    chat_id, csv_path, caption=f"✅ {count} ST candidates mile."
+                )
+            else:
+                send_message(
+                    chat_id, "⚠️ Scraping complete, par koi ST candidate data nahi mila."
+                )
+        except Exception as e:
+            send_message(chat_id, f"❌ Error: {e}")
+
+    save_offset(offset)
+
+
 if __name__ == "__main__":
     main()
     offset = load_offset()
