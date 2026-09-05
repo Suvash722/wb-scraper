@@ -106,3 +106,4 @@ def scrape_and_build_csv(target_urls_input, output_path="output.csv"):
 
     print(f"Total ST Candidates extracted: {len(final_extracted_data)}")
     return output_path, len(final_extracted_data)
+                                
