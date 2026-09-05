@@ -1,12 +1,11 @@
 import os
 import json
 import requests
-from main_spider import scrape_and_build_csv
+import subprocess
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 OFFSET_FILE = "offset.json"
-
 
 def load_offset():
     if os.path.exists(OFFSET_FILE):
@@ -14,26 +13,56 @@ def load_offset():
             return json.load(f).get("offset", 0)
     return 0
 
-
 def save_offset(offset):
     with open(OFFSET_FILE, "w") as f:
         json.dump({"offset": offset}, f)
 
-
 def send_message(chat_id, text):
-    requests.post(f"{API_URL}/sendMessage", data={"chat_id": chat_id, "text": text})
-
-
-def send_document(chat_id, file_path, caption=""):
-    with open(file_path, "rb") as f:
-        requests.post(
-            f"{API_URL}/sendDocument",
-            data={"chat_id": chat_id, "caption": caption},
-            files={"document": f},
-        )
-
+    requests.post(f"{API_URL}/sendMessage", json={"chat_id": chat_id, "text": text})
 
 def main():
+    offset = load_offset()
+    resp = requests.get(
+        f"{API_URL}/getUpdates", params={"offset": offset + 1, "timeout": 5}
+    ).json()
+    updates = resp.get("result", [])
+
+    for update in updates:
+        offset = update["update_id"]
+        message = update.get("message")
+        if not message or "text" not in message:
+            continue
+
+        chat_id = str(message["chat"]["id"])
+        text = message["text"].strip()
+
+        if text.startswith("/start"):
+            send_message(
+                chat_id,
+                "🤖 Welcome! Koi link ya search term bhejein (jaise: 'psc.wb.gov.in' ya 'WB Medical Result')."
+            )
+            save_offset(offset)
+            continue
+
+        send_message(chat_id, f"🚀 OSINT Radar Start: '{text}'\nIsme thoda time lag sakta hai...")
+        
+        try:
+            # Environment variables setup karna taaki main_spider.py seedha reply kar sake
+            env = os.environ.copy()
+            env["TELEGRAM_CHAT_ID"] = chat_id
+            
+            # Import karne ke bajaye naye script ko command line se run karna
+            subprocess.run(["python", "main_spider.py", "--query", text], env=env, check=True)
+            
+        except subprocess.CalledProcessError as e:
+            send_message(chat_id, "⚠️ Scraping complete, par shayad error aaya ya data nahi mila.")
+        except Exception as e:
+            send_message(chat_id, f"❌ System Error: {e}")
+
+        save_offset(offset)
+
+if __name__ == "__main__":
+    main()
     offset = load_offset()
     resp = requests.get(
         f"{API_URL}/getUpdates", params={"offset": offset + 1, "timeout": 5}
